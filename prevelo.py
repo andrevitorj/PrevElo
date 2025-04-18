@@ -16,19 +16,22 @@ def search_teams(query):
     return teams
 
 # Função para buscar o rating Elo (coluna "Points")
-def get_elo_rating(team_url, team_name):
+def get_elo_rating(team_url):
     response = requests.get(team_url)
     soup = BeautifulSoup(response.text, "html.parser")
+    # Encontra a tabela que contém "Points"
     table = soup.find("table")
     if table:
         rows = table.find_all("tr")
         for row in rows:
             cols = row.find_all("td")
             if len(cols) >= 3:
+                # Verifica se a coluna "Club" contém o nome do time
                 club = cols[1].text.strip()
-                if team_name.lower() in club.lower():
-                    points = cols[2].text.strip()
-                    return int(points) if points.isdigit() else None
+                # Extrai o "Points" da terceira coluna
+                points = cols[2].text.strip()
+                if points.isdigit():
+                    return int(points)
     return None
 
 # Interface Streamlit
@@ -46,11 +49,11 @@ if team_query:
         
         # Passo 3: Usuário escolhe o time
         if selected_team:
-            selected_name = selected_team.split(" (")[0]
+            # Extrai a URL correspondente ao time selecionado
             selected_url = next(url for name, url in teams if f"{name} ({url.split('/')[-1]})" == selected_team)
             
             # Passo 4: Busca e exibe o rating Elo
-            elo = get_elo_rating(selected_url, selected_name)
+            elo = get_elo_rating(selected_url)
             if elo is not None:
                 st.write(f"Rating Elo (Points): {elo}")
             else:
