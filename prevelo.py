@@ -1,40 +1,38 @@
 import streamlit as st
-import requests
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
 
 # Função para buscar links de times na página de busca
 def search_teams(query):
+    # Configura o Selenium para rodar em modo headless
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    
+    driver = webdriver.Chrome(options=chrome_options)
     url = f"https://footballdatabase.com/search.php?q={query}"
-    headers = {"User-Agent": "Mozilla/5.0"}  # Evita bloqueios
-    response = requests.get(url, headers=headers)
-    soup = BeautifulSoup(response.text, "html.parser")
-    teams = []
-    # Busca todos os links que contêm "clubs-ranking"
-    for link in soup.find_all("a", href=True):
-        href = link["href"]
-        if "clubs-ranking" in href:
-            team_name = link.text.strip()
-            team_url = "https://footballdatabase.com" + href
-            if team_name:  # Garante que o nome do time não está vazio
-                teams.append((team_name, team_url))
-    return teams
-
-# Função para buscar o rating Elo (coluna "Points")
-def get_elo_rating(team_url, team_name):
-    headers = {"User-Agent": "Mozilla/5.0"}
-    response = requests.get(team_url, headers=headers)
-    soup = BeautifulSoup(response.text, "html.parser")
-    table = soup.find("table")
-    if table:
-        rows = table.find_all("tr")
-        for row in rows:
-            cols = row.find_all("td")
-            if len(cols) >= 3:
-                club = cols[1].text.strip()
-                if team_name.lower() in club.lower():
-                    points = cols[2].text.strip()
-                    return int(points) if points.isdigit() else None
-    return None
+    
+    try:
+        driver.get(url)
+        # Aguarda o carregamento da página
+        driver.implicitly_wait(10)
+        soup = BeautifulSoup(driver.page_source, "html.parser")
+        teams = []
+        
+        # Busca links de clubes
+        for link in soup.find_all("a", href=True):
+            href = link["href"]
+            if "clubs-ranking" in href:
+                team_name = link.text.strip()
+                team_url = "https://footballdatabase.com" + href
+                if team_name:
+                    teams.append((team_name, team_url))
+        
+        return teams
+    finally:
+        driver.quit()
 
 # Interface Streamlit
 st.title("Busca de Rating Elo - FootballDatabase")
