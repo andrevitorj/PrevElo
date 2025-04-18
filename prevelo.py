@@ -2,10 +2,10 @@ import streamlit as st
 import requests
 from bs4 import BeautifulSoup
 
-# Função para buscar times disponíveis
+# Função para buscar links de times na página de busca
 def search_teams(query):
     url = f"https://footballdatabase.com/search.php?q={query}"
-    headers = {"User-Agent": "Mozilla/5.0"}  # Adiciona User-Agent para evitar bloqueios
+    headers = {"User-Agent": "Mozilla/5.0"}  # Evita bloqueios
     response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, "html.parser")
     teams = []
@@ -43,22 +43,11 @@ st.title("Busca de Rating Elo - FootballDatabase")
 team_query = st.text_input("Digite o nome do time (ex.: Racing)", "")
 
 if team_query:
-    # Passo 2: Busca e exibe lista de times encontrados
+    # Passo 2: Busca e lista os links encontrados
     teams = search_teams(team_query)
     if teams:
-        team_options = [f"{name} ({url.split('/')[-1]})" for name, url in teams]
-        selected_team = st.selectbox("Escolha o time:", team_options)
-        
-        # Passo 3: Usuário escolhe o time
-        if selected_team:
-            selected_name = selected_team.split(" (")[0]
-            selected_url = next(url for name, url in teams if f"{name} ({url.split('/')[-1]})" == selected_team)
-            
-            # Passo 4: Busca e exibe o rating Elo
-            elo = get_elo_rating(selected_url, selected_name)
-            if elo is not None:
-                st.write(f"Rating Elo (Points): {elo}")
-            else:
-                st.error("Rating Elo não encontrado para este time.")
+        st.write("Links encontrados para sua busca:")
+        for team_name, team_url in teams:
+            st.write(f"- {team_name}: {team_url}")
     else:
-        st.error("Nenhum time encontrado.")
+        st.error("Nenhum time encontrado. O site pode estar bloqueando a requisição ou a busca não retornou resultados.")
