@@ -8,30 +8,29 @@ def search_teams(query):
     response = requests.get(url)
     soup = BeautifulSoup(response.text, "html.parser")
     teams = []
+    # Busca links na página de resultados
     for result in soup.find_all("a", href=True):
-        if "clubs-ranking" in result["href"]:
+        href = result["href"]
+        if "clubs-ranking" in href and result.text.strip():  # Garante que é um link de clube e tem texto
             team_name = result.text.strip()
-            team_url = "https://footballdatabase.com" + result["href"]
+            team_url = "https://footballdatabase.com" + href
             teams.append((team_name, team_url))
     return teams
 
 # Função para buscar o rating Elo (coluna "Points")
-def get_elo_rating(team_url):
+def get_elo_rating(team_url, team_name):
     response = requests.get(team_url)
     soup = BeautifulSoup(response.text, "html.parser")
-    # Encontra a tabela que contém "Points"
     table = soup.find("table")
     if table:
         rows = table.find_all("tr")
         for row in rows:
             cols = row.find_all("td")
             if len(cols) >= 3:
-                # Verifica se a coluna "Club" contém o nome do time
-                club = cols[1].text.strip()
-                # Extrai o "Points" da terceira coluna
-                points = cols[2].text.strip()
-                if points.isdigit():
-                    return int(points)
+                club = cols[1].text.strip()  # Coluna "Club"
+                if team_name.lower() in club.lower():  # Verifica se o nome do time corresponde
+                    points = cols[2].text.strip()  # Coluna "Points"
+                    return int(points) if points.isdigit() else None
     return None
 
 # Interface Streamlit
@@ -49,11 +48,11 @@ if team_query:
         
         # Passo 3: Usuário escolhe o time
         if selected_team:
-            # Extrai a URL correspondente ao time selecionado
+            selected_name = selected_team.split(" (")[0]  # Extrai o nome do time
             selected_url = next(url for name, url in teams if f"{name} ({url.split('/')[-1]})" == selected_team)
             
             # Passo 4: Busca e exibe o rating Elo
-            elo = get_elo_rating(selected_url)
+            elo = get_elo_rating(selected_url, selected_name)
             if elo is not None:
                 st.write(f"Rating Elo (Points): {elo}")
             else:
