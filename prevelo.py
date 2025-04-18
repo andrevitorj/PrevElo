@@ -5,22 +5,24 @@ from bs4 import BeautifulSoup
 # Função para buscar times disponíveis
 def search_teams(query):
     url = f"https://footballdatabase.com/search.php?q={query}"
-    response = requests.get(url)
+    headers = {"User-Agent": "Mozilla/5.0"}  # Adiciona User-Agent para evitar bloqueios
+    response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, "html.parser")
     teams = []
-    # Procura por links dentro dos resultados de busca
-    for result in soup.find_all("div", class_="gsc-webResult gsc-result"):
-        link = result.find("a", href=True)
-        if link and "clubs-ranking" in link["href"]:
+    # Busca todos os links que contêm "clubs-ranking"
+    for link in soup.find_all("a", href=True):
+        href = link["href"]
+        if "clubs-ranking" in href:
             team_name = link.text.strip()
-            team_url = "https://footballdatabase.com" + link["href"]
+            team_url = "https://footballdatabase.com" + href
             if team_name:  # Garante que o nome do time não está vazio
                 teams.append((team_name, team_url))
     return teams
 
 # Função para buscar o rating Elo (coluna "Points")
 def get_elo_rating(team_url, team_name):
-    response = requests.get(team_url)
+    headers = {"User-Agent": "Mozilla/5.0"}
+    response = requests.get(team_url, headers=headers)
     soup = BeautifulSoup(response.text, "html.parser")
     table = soup.find("table")
     if table:
