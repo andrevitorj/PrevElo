@@ -1,51 +1,43 @@
-import streamlit as st
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
+import requests
 from bs4 import BeautifulSoup
+import pandas as pd
 
-# Função para buscar links de times na página de busca
-def search_teams(query):
-    # Configura o Selenium para rodar em modo headless
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
+# Função para buscar dados de uma página
+def scrape_page(page_number):
+    url = f"https://footballdatabase.com/ranking/world/{page_number}"
+    headers = {"User-Agent": "Mozilla/5.0"}  # Evita bloqueios
+    response = requests.get(url, headers=headers)
+    soup = BeautifulSoup(response.text, "html.parser")
     
-    driver = webdriver.Chrome(options=chrome_options)
-    url = f"https://footballdatabase.com/search.php?q={query}"
+    # Encontra a tabela
+    table = soup.find("table")
+    if not table:
+        return None
     
-    try:
-        driver.get(url)
-        # Aguarda o carregamento da página
-        driver.implicitly_wait(10)
-        soup = BeautifulSoup(driver.page_source, "html.parser")
-        teams = []
-        
-        # Busca links de clubes
-        for link in soup.find_all("a", href=True):
-            href = link["href"]
-            if "clubs-ranking" in href:
-                team_name = link.text.strip()
-                team_url = "https://footballdatabase.com" + href
-                if team_name:
-                    teams.append((team_name, team_url))
-        
-        return teams
-    finally:
-        driver.quit()
+    rows = table.find_all("tr")[1:]  # Ignora o cabeçalho
+    data = []
+    for row in rows:
+        cols = row.find_all("td")
+        if len(cols) >= 4:
+            rank = cols[0].text.strip()
+            club_country = cols[1].text.strip()
+            points = cols[2].text.strip()
+            change = cols[3].text.strip()
+            data.append([rank, club_country, points, change])
+    return data
 
-# Interface Streamlit
-st.title("Busca de Rating Elo - FootballDatabase")
+# Coleta dados de todas as páginas
+all_data = []
+for page in range(1, 61):  # De 1 a 60, conforme as páginas
+    print(f"Coletando página {page}...")
+    page_data = scrape_page(page)
+    if page_data:
+        all_data.extend(page_data)
 
-# Passo 1: Input do nome do time
-team_query = st.text_input("Digite o nome do time (ex.: Racing)", "")
-
-if team_query:
-    # Passo 2: Busca e lista os links encontrados
-    teams = search_teams(team_query)
-    if teams:
-        st.write("Links encontrados para sua busca:")
-        for team_name, team_url in teams:
-            st.write(f"- {team_name}: {team_url}")
-    else:
-        st.error("Nenhum time encontrado. O site pode estar bloqueando a requisição ou a busca não retornou resultados.")
+# Cria um DataFrame e salva em CSV
+if all_data:
+    df = pd.DataFrame(all_data, columns=["Rank", "Club / Country", "Points", "1-yr change"])
+    df.to_csv("football_rankings.csv", index=False)
+    print("CSV salvo como football_rankings.csv")
+else:
+    print("Nenhum dado coletado.")
