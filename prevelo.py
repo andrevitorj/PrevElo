@@ -8,13 +8,14 @@ def search_teams(query):
     response = requests.get(url)
     soup = BeautifulSoup(response.text, "html.parser")
     teams = []
-    # Busca links na página de resultados
-    for result in soup.find_all("a", href=True):
-        href = result["href"]
-        if "clubs-ranking" in href and result.text.strip():  # Garante que é um link de clube e tem texto
-            team_name = result.text.strip()
-            team_url = "https://footballdatabase.com" + href
-            teams.append((team_name, team_url))
+    # Procura por links dentro dos resultados de busca
+    for result in soup.find_all("div", class_="gsc-webResult gsc-result"):
+        link = result.find("a", href=True)
+        if link and "clubs-ranking" in link["href"]:
+            team_name = link.text.strip()
+            team_url = "https://footballdatabase.com" + link["href"]
+            if team_name:  # Garante que o nome do time não está vazio
+                teams.append((team_name, team_url))
     return teams
 
 # Função para buscar o rating Elo (coluna "Points")
@@ -27,9 +28,9 @@ def get_elo_rating(team_url, team_name):
         for row in rows:
             cols = row.find_all("td")
             if len(cols) >= 3:
-                club = cols[1].text.strip()  # Coluna "Club"
-                if team_name.lower() in club.lower():  # Verifica se o nome do time corresponde
-                    points = cols[2].text.strip()  # Coluna "Points"
+                club = cols[1].text.strip()
+                if team_name.lower() in club.lower():
+                    points = cols[2].text.strip()
                     return int(points) if points.isdigit() else None
     return None
 
@@ -48,7 +49,7 @@ if team_query:
         
         # Passo 3: Usuário escolhe o time
         if selected_team:
-            selected_name = selected_team.split(" (")[0]  # Extrai o nome do time
+            selected_name = selected_team.split(" (")[0]
             selected_url = next(url for name, url in teams if f"{name} ({url.split('/')[-1]})" == selected_team)
             
             # Passo 4: Busca e exibe o rating Elo
